@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<header class="site-header"><div class="site-header__inner"><a class="brand" href="index.php"><span class="brand__mark">●</span><span>TSP Lab</span></a><nav class="site-nav"><a class="active" href="index.php">Главная</a><a href="calculator-exact.php">Точный расчёт</a><a href="calculator-heuristic.php">Быстрый расчёт</a></nav><span class="mobile-home">🧭</span></div></header>
 <div class="container hub-container">
     <header class="hub-header">
         <h1>🧭 Задача коммивояжёра</h1>
@@ -35,7 +36,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="hub-note">* Если поиск завершён полностью. При достижении лимита времени калькулятор показывает лучшее найденное решение без гарантии оптимальности.</p>
+        <p class="hub-note">* Метод ветвей и границ гарантирует оптимум после полного завершения поиска. Время работы зависит от матрицы и размерности задачи.</p>
     </section>
 
     <section class="calculator-cards">
@@ -51,5 +52,6 @@
         </a>
     </section>
 </div>
+<footer class="site-footer"><div class="site-footer__inner"><div><strong>🧭 TSP Lab</strong><span>Интерактивный проект по дискретной оптимизации</span></div><nav><a href="index.php">Главная</a><a href="calculator-exact.php">Калькулятор</a></nav><span class="footer-note">PHP · JavaScript · vis-network</span></div></footer>
 </body>
 </html>

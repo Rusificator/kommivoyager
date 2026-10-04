@@ -1,13 +1,15 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-set_time_limit(50);
-$timeLimit = 40;
+
+// Пользователь управляет длительностью вычисления: искусственный лимит 40 секунд удалён.
+// На хостинге всё ещё могут действовать внешние ограничения PHP/FPM/веб-сервера.
+set_time_limit(0);
 
 $raw = file_get_contents('php://input');
 $data = json_decode($raw, true);
 
 if (!$data || !isset($data['matrix']) || !isset($data['n'])) {
-    echo json_encode(['error' => 'Некорректные данные']);
+    echo json_encode(['error' => 'Некорректные данные'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -15,23 +17,22 @@ $n = (int)$data['n'];
 $matrix = $data['matrix'];
 $mode = $data['mode'] ?? 'tour';
 
-// --- Валидация ---
 if ($n < 3 || $n > 15) {
-    echo json_encode(['error' => 'Размерность должна быть от 3 до 15']);
+    echo json_encode(['error' => 'Размерность должна быть от 3 до 15'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 if (count($matrix) !== $n) {
-    echo json_encode(['error' => 'Неверный размер матрицы']);
+    echo json_encode(['error' => 'Неверный размер матрицы'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 foreach ($matrix as $row) {
-    if (count($row) !== $n) {
-        echo json_encode(['error' => 'Матрица должна быть N×N']);
+    if (!is_array($row) || count($row) !== $n) {
+        echo json_encode(['error' => 'Матрица должна быть N×N'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     foreach ($row as $val) {
         if (!is_numeric($val) || $val < 0) {
-            echo json_encode(['error' => 'Все элементы должны быть неотрицательными числами']);
+            echo json_encode(['error' => 'Все элементы должны быть неотрицательными числами'], JSON_UNESCAPED_UNICODE);
             exit;
         }
     }
@@ -41,58 +42,39 @@ $startTime = microtime(true);
 
 if ($mode === 'path') {
     $start = (int)($data['start'] ?? 0);
-    $end   = (int)($data['end'] ?? $n - 1);
+    $end = (int)($data['end'] ?? $n - 1);
     if ($start < 0 || $start >= $n || $end < 0 || $end >= $n) {
-        echo json_encode(['error' => 'Неверные индексы городов']);
+        echo json_encode(['error' => 'Неверные индексы городов'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     if ($start === $end) {
-        echo json_encode(['error' => 'Начальный и конечный города должны различаться']);
+        echo json_encode(['error' => 'Начальный и конечный города должны различаться'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    $result = solveTSPPath($matrix, $n, $start, $end, $startTime, $timeLimit);
+    $result = solveTSPPath($matrix, $n, $start, $end);
 } else {
-    $result = solveTSPTour($matrix, $n, $startTime, $timeLimit);
+    $result = solveTSPTour($matrix, $n);
 }
 
 $result['time'] = round(microtime(true) - $startTime, 4);
 $result['mode'] = $mode;
-$result['timeLimit'] = $timeLimit;
-echo json_encode($result);
+$result['isOptimal'] = !isset($result['error']);
+$result['timedOut'] = false;
+echo json_encode($result, JSON_UNESCAPED_UNICODE);
 
-// ============================================================
-//   РЕЖИМ 1: замкнутый тур (классический TSP)
-// ============================================================
-function solveTSPTour($matrix, $n, $startTime, $timeLimit) {
+function solveTSPTour($matrix, $n) {
     $best = ['cost' => PHP_INT_MAX, 'path' => []];
     $visited = array_fill(0, $n, false);
     $visited[0] = true;
     $path = [0];
-    $timedOut = false;
-    try {
-        bbSearchTour($matrix, $n, 0, $path, $visited, 0, $best, $startTime, $timeLimit);
-    } catch (Exception $e) {
-        if ($e->getMessage() !== 'TIMEOUT') throw $e;
-        $timedOut = true;
-    }
+    bbSearchTour($matrix, $n, 0, $path, $visited, 0, $best);
 
-    if (empty($best['path'])) {
-        return ['error' => $timedOut ? 'За 40 секунд маршрут не найден. Уменьшите N и повторите попытку.' : 'Маршрут не найден'];
-    }
-    $best['path'][] = 0; // замыкаем
-    return [
-        'path' => $best['path'], 'cost' => $best['cost'], 'n' => $n,
-        'isOptimal' => !$timedOut, 'timedOut' => $timedOut,
-        'message' => $timedOut ? 'За 40 секунд не удалось доказать оптимальность. Показано лучшее найденное решение.' : null
-    ];
+    if (empty($best['path'])) return ['error' => 'Маршрут не найден'];
+    $best['path'][] = 0;
+    return ['path' => $best['path'], 'cost' => $best['cost'], 'n' => $n];
 }
 
-function bbSearchTour($matrix, $n, $current, &$path, &$visited, $cost, &$best, $startTime, $timeLimit) {
-    static $calls = 0;
-    $calls++;
-    if ($calls % 500 === 0 && microtime(true) - $startTime > $timeLimit) {
-        throw new Exception('TIMEOUT');
-    }
+function bbSearchTour($matrix, $n, $current, &$path, &$visited, $cost, &$best) {
     if ($cost >= $best['cost']) return;
 
     if (count($path) === $n) {
@@ -107,9 +89,7 @@ function bbSearchTour($matrix, $n, $current, &$path, &$visited, $cost, &$best, $
     $lb = $cost;
     $minFromCurrent = PHP_INT_MAX;
     for ($j = 0; $j < $n; $j++) {
-        if (!$visited[$j] && $matrix[$current][$j] < $minFromCurrent) {
-            $minFromCurrent = $matrix[$current][$j];
-        }
+        if (!$visited[$j] && $matrix[$current][$j] < $minFromCurrent) $minFromCurrent = $matrix[$current][$j];
     }
     if ($minFromCurrent !== PHP_INT_MAX) $lb += $minFromCurrent;
 
@@ -127,57 +107,33 @@ function bbSearchTour($matrix, $n, $current, &$path, &$visited, $cost, &$best, $
     if ($lb >= $best['cost']) return;
 
     $candidates = [];
-    for ($j = 0; $j < $n; $j++) {
-        if (!$visited[$j]) $candidates[] = [$j, $matrix[$current][$j]];
-    }
-    usort($candidates, fn($a, $b) => $a[1] - $b[1]);
+    for ($j = 0; $j < $n; $j++) if (!$visited[$j]) $candidates[] = [$j, $matrix[$current][$j]];
+    usort($candidates, fn($a, $b) => $a[1] <=> $b[1]);
 
     foreach ($candidates as $c) {
         $j = $c[0];
         $visited[$j] = true;
         $path[] = $j;
-        bbSearchTour($matrix, $n, $j, $path, $visited, $cost + $matrix[$current][$j], $best, $startTime, $timeLimit);
+        bbSearchTour($matrix, $n, $j, $path, $visited, $cost + $matrix[$current][$j], $best);
         array_pop($path);
         $visited[$j] = false;
     }
 }
 
-// ============================================================
-//   РЕЖИМ 2: открытый путь из start в end (гамильтонов путь)
-// ============================================================
-function solveTSPPath($matrix, $n, $start, $end, $startTime, $timeLimit) {
+function solveTSPPath($matrix, $n, $start, $end) {
     $best = ['cost' => PHP_INT_MAX, 'path' => []];
     $visited = array_fill(0, $n, false);
     $visited[$start] = true;
     $path = [$start];
+    bbSearchPath($matrix, $n, $start, $end, $path, $visited, 0, $best);
 
-    $timedOut = false;
-    try {
-        bbSearchPath($matrix, $n, $start, $end, $path, $visited, 0, $best, $startTime, $timeLimit);
-    } catch (Exception $e) {
-        if ($e->getMessage() !== 'TIMEOUT') throw $e;
-        $timedOut = true;
-    }
-
-    if (empty($best['path'])) {
-        return ['error' => $timedOut ? 'За 40 секунд путь не найден. Уменьшите N и повторите попытку.' : 'Путь между заданными городами не найден'];
-    }
-    return [
-        'path' => $best['path'], 'cost' => $best['cost'], 'n' => $n,
-        'isOptimal' => !$timedOut, 'timedOut' => $timedOut,
-        'message' => $timedOut ? 'За 40 секунд не удалось доказать оптимальность. Показано лучшее найденное решение.' : null
-    ];
+    if (empty($best['path'])) return ['error' => 'Путь между заданными городами не найден'];
+    return ['path' => $best['path'], 'cost' => $best['cost'], 'n' => $n];
 }
 
-function bbSearchPath($matrix, $n, $current, $end, &$path, &$visited, $cost, &$best, $startTime, $timeLimit) {
-    static $calls = 0;
-    $calls++;
-    if ($calls % 500 === 0 && microtime(true) - $startTime > $timeLimit) {
-        throw new Exception('TIMEOUT');
-    }
+function bbSearchPath($matrix, $n, $current, $end, &$path, &$visited, $cost, &$best) {
     if ($cost >= $best['cost']) return;
 
-    // База: все города посещены
     if (count($path) === $n) {
         if ($current === $end && $cost < $best['cost']) {
             $best['cost'] = $cost;
@@ -186,13 +142,10 @@ function bbSearchPath($matrix, $n, $current, $end, &$path, &$visited, $cost, &$b
         return;
     }
 
-    // Нижняя оценка: минимальное ребро от текущего + минимальные исходящие для остальных (кроме end)
     $lb = $cost;
     $minFromCurrent = PHP_INT_MAX;
     for ($j = 0; $j < $n; $j++) {
-        if (!$visited[$j] && $matrix[$current][$j] < $minFromCurrent) {
-            $minFromCurrent = $matrix[$current][$j];
-        }
+        if (!$visited[$j] && $matrix[$current][$j] < $minFromCurrent) $minFromCurrent = $matrix[$current][$j];
     }
     if ($minFromCurrent !== PHP_INT_MAX) $lb += $minFromCurrent;
 
@@ -200,20 +153,17 @@ function bbSearchPath($matrix, $n, $current, $end, &$path, &$visited, $cost, &$b
         if ($visited[$i] || $i === $end) continue;
         $minOut = PHP_INT_MAX;
         for ($j = 0; $j < $n; $j++) {
-            if ($i !== $j && !$visited[$j]) {
-                if ($matrix[$i][$j] < $minOut) $minOut = $matrix[$i][$j];
-            }
+            if ($i !== $j && !$visited[$j] && $matrix[$i][$j] < $minOut) $minOut = $matrix[$i][$j];
         }
         if ($minOut !== PHP_INT_MAX) $lb += $minOut;
     }
     if ($lb >= $best['cost']) return;
 
-    // Если остался только end — обязаны идти в него
     $unvisitedCount = 0;
     for ($j = 0; $j < $n; $j++) if (!$visited[$j]) $unvisitedCount++;
 
     if ($unvisitedCount === 1) {
-        if ($matrix[$current][$end] < PHP_INT_MAX) {
+        if (!$visited[$end]) {
             $path[] = $end;
             $visited[$end] = true;
             $newCost = $cost + $matrix[$current][$end];
@@ -227,20 +177,17 @@ function bbSearchPath($matrix, $n, $current, $end, &$path, &$visited, $cost, &$b
         return;
     }
 
-    // Кандидаты: все непосещённые, кроме end
     $candidates = [];
     for ($j = 0; $j < $n; $j++) {
-        if (!$visited[$j] && $j !== $end) {
-            $candidates[] = [$j, $matrix[$current][$j]];
-        }
+        if (!$visited[$j] && $j !== $end) $candidates[] = [$j, $matrix[$current][$j]];
     }
-    usort($candidates, fn($a, $b) => $a[1] - $b[1]);
+    usort($candidates, fn($a, $b) => $a[1] <=> $b[1]);
 
     foreach ($candidates as $c) {
         $j = $c[0];
         $visited[$j] = true;
         $path[] = $j;
-        bbSearchPath($matrix, $n, $j, $end, $path, $visited, $cost + $matrix[$current][$j], $best, $startTime, $timeLimit);
+        bbSearchPath($matrix, $n, $j, $end, $path, $visited, $cost + $matrix[$current][$j], $best);
         array_pop($path);
         $visited[$j] = false;
     }
