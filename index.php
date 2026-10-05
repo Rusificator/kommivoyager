@@ -3,12 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0c24">
     <title>Задача коммивояжёра — методы решения</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/site.js" defer></script>
 </head>
-<body>
-<header class="site-header"><div class="site-header__inner"><a class="brand" href="index.php"><span class="brand__mark">●</span><span>TSP Lab</span></a><nav class="site-nav"><a class="active" href="index.php">Главная</a><a href="calculator-exact.php">Точный расчёт</a><a href="calculator-heuristic.php">Быстрый расчёт</a></nav><span class="mobile-home">🧭</span></div></header>
-<div class="container hub-container">
+<body class="site-body">
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="index.php" aria-label="TSP Lab — на главную"><span class="brand__mark">●</span><span>TSP Lab</span></a>
+        <nav id="siteNav" class="site-nav" aria-label="Основная навигация" data-mobile-nav>
+            <a class="active" href="index.php">Главная</a>
+            <a href="calculator-exact.php">Точный метод</a>
+            <a href="calculator-heuristic.php">Быстрый метод</a>
+        </nav>
+        <button class="nav-toggle" type="button" aria-label="Открыть меню" aria-controls="siteNav" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span></button>
+    </div>
+</header>
+<div class="nav-backdrop" data-nav-backdrop></div>
+
+<main class="container hub-container">
     <header class="hub-header">
         <h1>🧭 Задача коммивояжёра</h1>
         <p class="subtitle">Методы точного и приближённого решения TSP</p>
@@ -27,7 +41,7 @@
                 <thead><tr><th>Метод</th><th>Тип</th><th>Сложность</th><th>Рекомендуемое N</th><th>Гарантия оптимума</th></tr></thead>
                 <tbody>
                     <tr><td>Полный перебор</td><td>Точный</td><td>O(N!)</td><td>≤ 10</td><td><span class="method-badge yes">Да</span></td></tr>
-                    <tr><td>Ветви и границы</td><td>Точный</td><td>O(N!) в худшем случае</td><td>≤ 15</td><td><span class="method-badge yes">Да*</span></td></tr>
+                    <tr><td>Ветви и границы</td><td>Точный</td><td>O(N!) в худшем случае</td><td>≤ 15</td><td><span class="method-badge yes">Да</span></td></tr>
                     <tr><td>Held–Karp (DP)</td><td>Точный</td><td>O(N²·2ᴺ)</td><td>≈ 20–25</td><td><span class="method-badge yes">Да</span></td></tr>
                     <tr><td>Ближайший сосед</td><td>Эвристический</td><td>O(N²)</td><td>Большие N</td><td><span class="method-badge no">Нет</span></td></tr>
                     <tr><td>2-opt / 3-opt</td><td>Локальный поиск</td><td>≈ O(N²) / O(N³) за проход</td><td>Большие N</td><td><span class="method-badge no">Нет</span></td></tr>
@@ -36,7 +50,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="hub-note">* Метод ветвей и границ гарантирует оптимум после полного завершения поиска. Время работы зависит от матрицы и размерности задачи.</p>
+        <p class="hub-note">Метод ветвей и границ гарантирует оптимум после полного завершения поиска. Время работы зависит от матрицы и размерности задачи.</p>
     </section>
 
     <section class="calculator-cards">
@@ -51,7 +65,14 @@
             <span class="soon-badge">Скоро</span>
         </a>
     </section>
-</div>
-<footer class="site-footer"><div class="site-footer__inner"><div><strong>🧭 TSP Lab</strong><span>Интерактивный проект по дискретной оптимизации</span></div><nav><a href="index.php">Главная</a><a href="calculator-exact.php">Калькулятор</a></nav><span class="footer-note">PHP · JavaScript · vis-network</span></div></footer>
+</main>
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <div><strong>🧭 TSP Lab</strong><span>Интерактивный проект по дискретной оптимизации</span></div>
+        <nav aria-label="Навигация в подвале"><a href="index.php">Главная</a><a href="calculator-exact.php">Точный метод</a><a href="calculator-heuristic.php">Быстрый метод</a></nav>
+        <span class="footer-note">PHP · JavaScript · vis-network</span>
+    </div>
+</footer>
 </body>
 </html>
